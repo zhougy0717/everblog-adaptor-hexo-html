@@ -10,10 +10,10 @@ const debug = require('debug')('everblog-adaptor-hexo')
 const cheerio = require('cheerio')
 const format = require('string-format')
 const Promise = require('bluebird')
+const path = require('path')
 
 module.exports = function* (data) {
   const dist = process.cwd() + '/source/_posts/'
-  fse.emptyDirSync(dist)
 
   for(let post of data.posts){
     const defaultFrontMatter = {
@@ -22,27 +22,39 @@ module.exports = function* (data) {
       updated: formatDate(post.updated),
       tags: post.tags
     }
+    console.log(post.title)
     debug('content -> %j', post.content)
 
     let contentMarkdown = enml2html(post.content, post.resources, data.$webApiUrlPrefix, post.noteKey)
     debug('contentMarkdown -> %j', contentMarkdown)
 
     let $ = cheerio.load(contentMarkdown)
+    if (post.attributes.sourceApplication === 'maxiang') {
+      $('h1').remove()
+    }
     // Download all images and update the src attribute.
     const getNoteResource = Promise.promisify(data.noteStore.getResource, { context: data.noteStore })
     if (post.resources) {
       for (let res of post.resources) {
         let resData = yield getNoteResource(res.guid, true, false, true, false)
-        var fileName = resData.attributes.fileName
+        var fileName = path.basename(resData.attributes.fileName)
         if (!fileName) {
           fileName = Date.now().toString()
+        }
+        const hash = bodyHashToString(resData.data.bodyHash)
+        if (fileName.startsWith("__SVG__")) {
+          let imgWidth = $(format('img[hash="{}"]', hash)).attr('width')
+          let imgHeight = $(format('img[hash="{}"]', hash)).attr('height')
+          imgWidth = parseInt(imgWidth) * 0.6
+          imgHeight = parseInt(imgHeight) * 0.6
+          $(format('img[hash={}]', hash)).attr('width', imgWidth.toString())
+          $(format('img[hash={}]', hash)).attr('height', imgHeight.toString())
         }
         // Some images don't have file name field.
         // Make sure each of them has a name.
         fileName = fileName.replace(/_/g, '')
         const imgFile = format('/images/{}/{}', post.title, fileName)
         fse.outputFileSync(format('{}/source/{}', process.cwd(), imgFile), new Buffer(resData.data.body), 'binary')
-        const hash = bodyHashToString(resData.data.bodyHash)
         // Point src field to the resource's real location.
         // This does work if you deploy it to your hexo server.
         $(format('img[hash="{}"]', hash)).attr('src', imgFile)

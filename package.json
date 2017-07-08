@@ -10,6 +10,7 @@
     "hexo"
   ],
   "dependencies": {
+    "bluebird": "^3.5.0",
     "co": "^4.6.0",
     "debug": "^2.2.0",
     "enml2html": "^0.3.1",
