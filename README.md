@@ -11,7 +11,7 @@ HTML based Hexo adaptor for [everblog](https://github.com/everblogjs/everblog).
 3. vim index.js, add:
 
     ```
-    module.exports = require('everblog-adaptor-hexo')
+    module.exports = require('everblog-adaptor-hexoa-html')
     ```
 
 4. DEBUG=* everblog build (see [everblog](https://github.com/everblogjs/everblog))
