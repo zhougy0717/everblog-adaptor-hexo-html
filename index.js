@@ -37,10 +37,11 @@ module.exports = function* (data) {
     if (post.resources) {
       for (let res of post.resources) {
         let resData = yield getNoteResource(res.guid, true, false, true, false)
-        var fileName = path.basename(resData.attributes.fileName)
+        var fileName = resData.attributes.fileName
         if (!fileName) {
           fileName = Date.now().toString()
         }
+        fileName = path.basename(fileName)
         const hash = bodyHashToString(resData.data.bodyHash)
         if (fileName.startsWith("__SVG__")) {
           let imgWidth = $(format('img[hash="{}"]', hash)).attr('width')
