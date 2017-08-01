@@ -1,6 +1,6 @@
 {
   "name": "everblog-adaptor-hexo-html",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "HTML based Hexo adaptor for [everblog](https://github.com/everblogjs/everblog).",
   "main": "index",
   "keywords": [
