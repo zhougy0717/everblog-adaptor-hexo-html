@@ -11,6 +11,7 @@ const cheerio = require('cheerio')
 const format = require('string-format')
 const Promise = require('bluebird')
 const path = require('path')
+const sanitize = require('sanitize-filename')
 
 module.exports = function* (data) {
   const dist = process.cwd() + '/source/_posts/'
@@ -29,8 +30,12 @@ module.exports = function* (data) {
     debug('contentMarkdown -> %j', contentMarkdown)
 
     let $ = cheerio.load(contentMarkdown)
-    if (post.attributes.sourceApplication === 'maxiang') {
-      $('h1').remove()
+    const attributes = post.attributes
+    if (attributes) {
+      const sourceApplication = post.attributes.sourceApplication
+      if (sourceApplication && (sourceApplication === 'maxiang')) {
+        $('h1').remove()
+      }
     }
     // Download all images and update the src attribute.
     const getNoteResource = Promise.promisify(data.noteStore.getResource, { context: data.noteStore })
@@ -54,7 +59,7 @@ module.exports = function* (data) {
         // Some images don't have file name field.
         // Make sure each of them has a name.
         fileName = fileName.replace(/_/g, '')
-        const imgFile = format('/images/{}/{}', post.title, fileName)
+        const imgFile = format('/images/{}/{}', sanitize(post.title), fileName)
         fse.outputFileSync(format('{}/source/{}', process.cwd(), imgFile), new Buffer(resData.data.body), 'binary')
         // Point src field to the resource's real location.
         // This does work if you deploy it to your hexo server.

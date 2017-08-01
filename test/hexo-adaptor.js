@@ -10,48 +10,48 @@ const format = require('string-format')
 var processor = rewire('../index')
 
 describe('generate html blog post based notes data', function () {
-  it('note2html', function(){
-    const data ={
-      attributes: {
-        title: "test, blog title"
-      },
-      webApiUrlPrefix: "test url prefix",
-      noteStore: {
-        getResource: function(a,b,c,d,e,callback){
-          callback(null, resData)
-        }
-      },
-      posts: [
-        { // post with resources
-          title: "test note title",
-          created: 1498021041970,
-          updated: 1498021041970,
-          tags: [],
-          resources: [
-            { 
-              guid: '123456',
-            }
-          ],
-        },
-        { // post without resources
-          title: "test note title no resource",
-          created: 1498021041970,
-          updated: 1498021041970,
-          tags: [],
-          resources: null
-        }
-      ]
-    }
-    const resData = {
-      attributes: {
-        fileName: '__test_resource'
-      },
-      data: {
-        bodyHash: [0],
-        body: [12,34,56,78]
+  const data ={
+    attributes: {
+      title: "test, blog title"
+    },
+    webApiUrlPrefix: "test url prefix",
+    noteStore: {
+      getResource: function(a,b,c,d,e,callback){
+        callback(null, resData)
       }
+    },
+    posts: [
+      { // post with resources
+        title: "test note title",
+        created: 1498021041970,
+        updated: 1498021041970,
+        tags: [],
+        resources: [
+          { 
+            guid: '123456',
+          }
+        ],
+      },
+      { // post without resources
+        title: "test note title no resource",
+        created: 1498021041970,
+        updated: 1498021041970,
+        tags: [],
+        resources: null
+      }
+    ]
+  }
+  const resData = {
+    attributes: {
+      fileName: '__test_resource'
+    },
+    data: {
+      bodyHash: [0],
+      body: [12,34,56,78]
     }
+  }
 
+  it('note2html', function(){
     processor.__set__("enml2html", function(a, b){
       if (b){ // has resource
         return `<div><img alt='123' longdesc='123' hash='00' src='http://web.test.com'></img></div>`
@@ -85,5 +85,14 @@ describe('generate html blog post based notes data', function () {
           })
         })
       })
+  })
+
+  it('post with special title', function(){
+    data.posts[0].title = "illegal sign :"
+    return (function(){
+      return co(function*(){
+        return yield processor(data)
+      })
+    }()).should.be.fulfilled()
   })
 })
