@@ -1,66 +1,69 @@
 'use strict'
 
-const fs = require('fs')
+const fse = require('fs-extra')
 const should = require('should')
 const co = require('co')
 const cheerio = require('cheerio')
 const rewire = require("rewire");
 const fm = require('front-matter')
 const format = require('string-format')
+const sinon = require('sinon')
+const enml2html = require('enml2html')
 var processor = rewire('../index')
 
 describe('generate html blog post based notes data', function () {
-  const data ={
-    attributes: {
-      title: "test, blog title"
-    },
-    webApiUrlPrefix: "test url prefix",
-    noteStore: {
-      getResource: function(a,b,c,d,e,callback){
-        callback(null, resData)
-      }
-    },
-    posts: [
-      { // post with resources
-        title: "test note title",
-        created: 1498021041970,
-        updated: 1498021041970,
-        tags: [],
-        resources: [
-          { 
-            guid: '123456',
-          }
-        ],
+  var stubEnml2Html = sinon.stub()
+  var data
+  var outputFileSync
+  beforeEach('setUp', function () {
+    processor.__set__('enml2html', stubEnml2Html)
+    outputFileSync = sinon.spy(fse, 'outputFileSync')
+    data = {
+      attributes: {
+        title: "test, blog title"
       },
-      { // post without resources
-        title: "test note title no resource",
-        created: 1498021041970,
-        updated: 1498021041970,
-        tags: [],
-        resources: null
-      }
-    ]
-  }
-  const resData = {
-    attributes: {
-      fileName: '__test_resource'
-    },
-    data: {
-      bodyHash: [0],
-      body: [12,34,56,78]
+      webApiUrlPrefix: "test url prefix",
+      noteStore: {
+        getResource: sinon.stub()
+      },
+      posts: []
     }
-  }
+  })
 
+  afterEach('tearDown', function () {
+    outputFileSync.restore()
+  })
   it('note2html', function(){
-    processor.__set__("enml2html", function(a, b){
-      if (b){ // has resource
-        return `<div><img alt='123' longdesc='123' hash='00' src='http://web.test.com'></img></div>`
+    const resData = {
+      attributes: {
+        fileName: '__test_resource'
+      },
+      data: {
+        bodyHash: [0],
+        body: [12,34,56,78]
       }
-      else { // no resource
-        return `<div></div>`
-      }
-    });
-    const dist = process.cwd() + '/source/_posts/';
+    }
+    data.posts[0] = { // post with resources
+      title: "test note title",
+      created: 1498021041970,
+      updated: 1498021041970,
+      tags: [],
+      resources: [
+        { 
+          guid: '123456',
+        }
+      ]
+    }
+    data.noteStore.getResource.callsArgWith(5, null, resData)
+    stubEnml2Html.returns(""+
+      "<div>" +
+        "<img alt='123' " +
+             "longdesc='123' "+
+             "hash='00' "+
+             "src='http://web.test.com'>"+
+        "</img>"+
+      "</div>"
+    )
     return (function(){
       return co(function*(){
         return yield processor(data)
@@ -69,9 +72,8 @@ describe('generate html blog post based notes data', function () {
       .should.be.fulfilled().then(function(){
         // verify
         data.posts.forEach(post => {
-          let fileName = dist + post.title + '.html'
-          fs.existsSync(fileName).should.be.true()
-          let html = fs.readFileSync(fileName, 'utf-8')
+          outputFileSync.calledTwice.should.be.true()
+          let html = outputFileSync.args[1][1]
           fm.test(html).should.be.true()
           let content = fm(html).body
           let $ = cheerio.load(content)
@@ -81,14 +83,54 @@ describe('generate html blog post based notes data', function () {
             $(this).attr('alt').should.be.equal('')
             $(this).attr('src').should.startWith('/images/')
             $(this).attr('src').indexOf('_').should.equal(-1)
-            fs.existsSync(format('{}/source/{}', process.cwd(), $(this).attr('src'))).should.be.true()
           })
         })
       })
   })
 
+  it('should convert enml with no resource to html', function () {
+    data.posts[0] = {
+      title: "test note title",
+      created: 1498021041970,
+      updated: 1498021041970,
+      tags: [],
+    }
+  
+    stubEnml2Html.returns('<div></div>')
+    return (function(){
+      return co(function*(){
+        return yield processor(data)
+      })
+    }()).should.be.fulfilled()
+  })
+
+  it('should replace all curly braces', function () {
+    data.posts[0] = {
+      title: "test note title",
+      created: 1498021041970,
+      updated: 1498021041970,
+      tags: [],
+    }
+
+    stubEnml2Html.returns("<div>{}</div>")
+    return (function(){
+      return co(function*(){
+        return yield processor(data)
+      })
+    }()).should.be.fulfilled().then(function () {
+      let html = outputFileSync.args[0][1]
+      html.indexOf('{').should.equal(-1)
+      html.indexOf('}').should.equal(-1)
+    })
+  })
+
   it('post with special title', function(){
-    data.posts[0].title = "illegal sign :"
+    data.posts[0] = {
+      title: "illegal sign :",
+      created: 1498021041970,
+      updated: 1498021041970,
+      tags: [],
+    }
     return (function(){
       return co(function*(){
         return yield processor(data)

@@ -38,8 +38,8 @@ module.exports = function* (data) {
       }
     }
     // Download all images and update the src attribute.
-    const getNoteResource = Promise.promisify(data.noteStore.getResource, { context: data.noteStore })
     if (post.resources) {
+      const getNoteResource = Promise.promisify(data.noteStore.getResource, { context: data.noteStore })
       for (let res of post.resources) {
         let resData = yield getNoteResource(res.guid, true, false, true, false)
         var fileName = resData.attributes.fileName
@@ -76,6 +76,7 @@ module.exports = function* (data) {
     // Making it as block will force everything in scope.
     $('div').css('display', 'block')
     contentMarkdown = $.html()
+    contentMarkdown = removeSpecialChar(contentMarkdown)
 
     var info = fm.parse(contentMarkdown)
     _.merge(info.attributes, defaultFrontMatter)
@@ -88,6 +89,10 @@ module.exports = function* (data) {
   debug('build success!')
 }
 
+function removeSpecialChar(html) {
+  html = html.replace(/{{/g, '&#123;&#123;')
+  return html.replace(/}}/g, '&#125;&#125;')
+}
 function formatDate(timestamp) {
   return moment(timestamp).format('YYYY/M/DD HH:mm:ss')
 }
