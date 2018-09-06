@@ -27,7 +27,7 @@ module.exports = function* (data) {
     debug('content -> %j', post.content)
 
     let contentMarkdown = enml2html(post.content, post.resources, data.$webApiUrlPrefix, post.noteKey)
-    debug('contentMarkdown -> %j', contentMarkdown)
+    // debug('contentMarkdown -> %j', contentMarkdown)
 
     let $ = cheerio.load(contentMarkdown)
     const attributes = post.attributes
@@ -82,9 +82,10 @@ module.exports = function* (data) {
     _.merge(info.attributes, defaultFrontMatter)
     contentMarkdown = fm.stringify(info)
 
-    const filename = dist + info.attributes.title + '.html'
+    const filename = (dist + info.attributes.title + '.html').replace(/ /g, '_');
     fse.outputFileSync(filename, contentMarkdown)
-    debug('title -> %s, body -> %j', info.attributes.title, contentMarkdown)
+    debug('file name-> %s, title -> %s', filename, info.attributes.title)
+    // debug('title -> %s, body -> %j', info.attributes.title, contentMarkdown)
   }
   debug('build success!')
 }
