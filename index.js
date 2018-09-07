@@ -91,6 +91,7 @@ module.exports = function* (data) {
 }
 
 function removeSpecialChar(html) {
+  html = html.replace(/.*<!DOCTYPE/, '<!DOCTYPE')
   html = html.replace(/{{/g, '&#123;&#123;')
   return html.replace(/}}/g, '&#125;&#125;')
 }
