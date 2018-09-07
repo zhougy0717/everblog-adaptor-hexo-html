@@ -15,7 +15,7 @@
     "debug": "^2.2.0",
     "enml2html": "^0.3.1",
     "entities": "^1.1.1",
-    "front-matter": "git://github.com/nswbmw/front-matter.git#add_parse_and_stringify",
+    "front-matter": "^2.0.6",
     "fs": "0.0.1-security",
     "fs-extra": "^0.26.5",
     "lodash": "^4.6.1",

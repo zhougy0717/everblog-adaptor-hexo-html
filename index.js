@@ -12,6 +12,8 @@ const format = require('string-format')
 const Promise = require('bluebird')
 const path = require('path')
 const sanitize = require('sanitize-filename')
+const parser = require('js-yaml')
+const os = require('os')
 
 module.exports = function* (data) {
   const dist = process.cwd() + '/source/_posts/'
@@ -78,14 +80,15 @@ module.exports = function* (data) {
     contentMarkdown = $.html()
     contentMarkdown = removeSpecialChar(contentMarkdown)
 
-    var info = fm.parse(contentMarkdown)
+    var info = fm(contentMarkdown)
     _.merge(info.attributes, defaultFrontMatter)
-    contentMarkdown = fm.stringify(info)
+    //contentMarkdown = fm.stringify(info)
+    contentMarkdown = fmStringify(info)
 
     const filename = (dist + info.attributes.title + '.html').replace(/ /g, '_');
     fse.outputFileSync(filename, contentMarkdown)
     debug('file name-> %s, title -> %s', filename, info.attributes.title)
-    // debug('title -> %s, body -> %j', info.attributes.title, contentMarkdown)
+    debug('body -> %j', contentMarkdown)
   }
   debug('build success!')
 }
@@ -109,5 +112,22 @@ function bodyHashToString(bodyHash) {
     str += hexStr;
   }
   return str;
+}
+
+function fmStringify (obj, opt) {
+  obj = obj || {}
+  opt = opt || {}
+  var attributes = obj.attributes || {}
+  var body = obj.body || {}
+  var scope = opt.scope || '---'
+
+  if (Object.keys(attributes).length === 0) {
+    return body
+  }
+
+  var yaml = parser.dump(attributes)
+  yaml = scope + os.EOL + yaml + scope + os.EOL + body
+
+  return yaml
 }
 
