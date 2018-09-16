@@ -15,10 +15,16 @@ const sanitize = require('sanitize-filename')
 const parser = require('js-yaml')
 const os = require('os')
 
-module.exports = function* (data) {
-  const dist = process.cwd() + '/source/_posts/'
+function resolveNoteResource(resData, title, html) {
+  let fileName = resData.attributes.fileName || Date.now().toString()
+  fileName = path.basename(fileName.replace(/_/g, ''))
+  const hash = bodyHashToString(resData.data.bodyHash)
+  const imgFile = format('/images/{}/{}', sanitize(title), fileName)
+  fse.outputFileSync(format('{}/source/{}', process.cwd(), imgFile), new Buffer(resData.data.body), 'binary')
+  html(format('img[hash="{}"]', hash)).attr('src', imgFile)
+}
 
-  for(let post of data.posts){
+function processNote(post) {
     const defaultFrontMatter = {
       title: post.title,
       date: formatDate(post.created),
@@ -28,7 +34,7 @@ module.exports = function* (data) {
     console.log(post.title)
     debug('content -> %j', post.content)
 
-    let contentMarkdown = enml2html(post.content, post.resources, data.$webApiUrlPrefix, post.noteKey)
+    let contentMarkdown = enml2html(post.content, post.resources, post.$webApiUrlPrefix, post.noteKey)
     // debug('contentMarkdown -> %j', contentMarkdown)
 
     let $ = cheerio.load(contentMarkdown)
@@ -39,33 +45,11 @@ module.exports = function* (data) {
         $('h1').remove()
       }
     }
+
     // Download all images and update the src attribute.
     if (post.resources) {
-      const getNoteResource = Promise.promisify(data.noteStore.getResource, { context: data.noteStore })
-      for (let res of post.resources) {
-        let resData = yield getNoteResource(res.guid, true, false, true, false)
-        var fileName = resData.attributes.fileName
-        if (!fileName) {
-          fileName = Date.now().toString()
-        }
-        fileName = path.basename(fileName)
-        const hash = bodyHashToString(resData.data.bodyHash)
-        if (fileName.startsWith("__SVG__")) {
-          let imgWidth = $(format('img[hash="{}"]', hash)).attr('width')
-          let imgHeight = $(format('img[hash="{}"]', hash)).attr('height')
-          imgWidth = parseInt(imgWidth) * 0.6
-          imgHeight = parseInt(imgHeight) * 0.6
-          $(format('img[hash={}]', hash)).attr('width', imgWidth.toString())
-          $(format('img[hash={}]', hash)).attr('height', imgHeight.toString())
-        }
-        // Some images don't have file name field.
-        // Make sure each of them has a name.
-        fileName = fileName.replace(/_/g, '')
-        const imgFile = format('/images/{}/{}', sanitize(post.title), fileName)
-        fse.outputFileSync(format('{}/source/{}', process.cwd(), imgFile), new Buffer(resData.data.body), 'binary')
-        // Point src field to the resource's real location.
-        // This does work if you deploy it to your hexo server.
-        $(format('img[hash="{}"]', hash)).attr('src', imgFile)
+      for(let res of post.resources) {
+        resolveNoteResource(res, post.title, $)
       }
     }
 
@@ -74,21 +58,34 @@ module.exports = function* (data) {
     // Just remove them.
     $('img').attr('longdesc', '')
     $('img').attr('alt', '')
-    // Originally, they are inline-block, which will make the view is out of page scope.
+    // Originally, they are inline-block, which will make the view be out of page scope.
     // Making it as block will force everything in scope.
-    $('div').css('display', 'block')
+    // $('div').css('display', 'block')
     contentMarkdown = $.html()
     contentMarkdown = removeSpecialChar(contentMarkdown)
 
     var info = fm(contentMarkdown)
     _.merge(info.attributes, defaultFrontMatter)
-    //contentMarkdown = fm.stringify(info)
     contentMarkdown = fmStringify(info)
 
+    const dist = process.cwd() + '/source/_posts/'
     const filename = (dist + info.attributes.title + '.html').replace(/ /g, '_');
     fse.outputFileSync(filename, contentMarkdown)
     debug('file name-> %s, title -> %s', filename, info.attributes.title)
     debug('body -> %j', contentMarkdown)
+}
+
+module.exports = function* (data) {
+  let getNote = Promise.promisify(data.noteStore.getNote, { context: data.noteStore })
+
+  for(let post of data.posts) {
+    post.noteStore = data.noteStore
+    post.$webApiUrlPrefix = data.$webApiUrlPrefix
+    console.log('process post -> ' + post.title + ' @ ' + (new Date().valueOf()))
+    let note = yield getNote(post.guid, false, true, false, false)
+    post.resources = note.resources
+    processNote(post)
+    console.log('done process -> ' + post.title + ' @ ' + (new Date().valueOf()))
   }
   debug('build success!')
 }
@@ -131,3 +128,8 @@ function fmStringify (obj, opt) {
   return yaml
 }
 
+function sleep(ms) {
+  return new Promise((resolve, reject) => {
+    setTimeout(resolve, ms);
+  });
+}
