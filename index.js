@@ -76,16 +76,17 @@ function processNote(post) {
 }
 
 module.exports = function* (data) {
-  let getNote = Promise.promisify(data.noteStore.getNote, { context: data.noteStore })
+  let getNoteResources = Promise.promisify(data.noteStore.getNote, { context: data.noteStore })
 
   for(let post of data.posts) {
     post.noteStore = data.noteStore
     post.$webApiUrlPrefix = data.$webApiUrlPrefix
     console.log('process post -> ' + post.title + ' @ ' + (new Date().valueOf()))
-    let note = yield getNote(post.guid, false, true, false, false)
+    let note = yield getNoteResources(post.guid, false, true, false, false)
     post.resources = note.resources
     processNote(post)
     console.log('done process -> ' + post.title + ' @ ' + (new Date().valueOf()))
+    sleep(5000)
   }
   debug('build success!')
 }
